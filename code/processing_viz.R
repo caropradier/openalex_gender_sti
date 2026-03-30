@@ -503,7 +503,7 @@ full_table %>%
   guides(fill = guide_legend(nrow = 2))+
   guides(color = guide_legend(nrow = 2))
 
-ggsave("results/obs_exp_references_homo_together_diff.png",bg="white",height = 10,width = 12)
+ggsave("results/obs_exp_references_homo_together_diff.png",bg="white",height = 8,width = 12)
 
 ####supplementary - references######
 
@@ -519,7 +519,7 @@ full_table %>%
   ))+
   geom_point(alpha = .7)+
   geom_smooth()+
-  geom_hline(yintercept = 1, size = .2)+
+  geom_hline(yintercept = .5, size = .2)+
   theme_minimal()+
   scale_color_manual(values = RColorBrewer::brewer.pal("Spectral", n = 11)[c(9,1)])+
   scale_fill_manual(values = RColorBrewer::brewer.pal("Spectral", n = 11)[c(9,1)])+
