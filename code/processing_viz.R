@@ -431,6 +431,7 @@ gendered_references_weights <- read_csv("data/weights_references_norm.csv") %>%
 
 clean_gendered_references <- gendered_references %>% 
   filter(citing_field != "No data") %>% 
+  filter(publication_year >=1991) %>% 
   group_by(continent,cited_gender,publication_year,citing_field) %>% 
   summarise(n_works = sum(n_works)) %>% 
   ungroup()
@@ -442,45 +443,41 @@ clean_gendered_references_weights <- gendered_references_weights %>%
   summarise(n_works = sum(n_works)) %>% 
   group_by(continent,publication_year) %>% 
   mutate(w = n_works/sum(n_works)) %>% 
-  ungroup()
+  ungroup() %>% 
+  select(-n_works)
 
-expected <- clean_gendered_references %>% 
-  group_by(publication_year,citing_field,cited_gender) %>% 
-  summarise(n = sum(n_works)) %>% 
-  group_by(publication_year,citing_field) %>% 
-  mutate(expected = n/sum(n)) %>% 
-  ungroup() %>% select(-n)
 
-weighted_expected_values <- clean_gendered_references_weights %>% 
-  select(-n_works) %>% 
-  left_join(expected, by = c("publication_year","citing_field")) %>% 
-  group_by(continent,publication_year,cited_gender) %>% 
-  summarise(exp = weighted.mean(x =expected, w = w))
-
-observed <- clean_gendered_references %>% 
-  group_by(continent,cited_gender,publication_year) %>%
+normalization <- clean_gendered_references %>% 
+  group_by(publication_year,cited_gender,citing_field) %>%
   summarise(n_works = sum(n_works)) %>% 
-  group_by(continent,publication_year) %>% 
-  mutate(observed = n_works/sum(n_works))
+  group_by(publication_year,citing_field) %>%
+  mutate(exp =n_works/sum(n_works)) %>% 
+  select(-n_works)
+
+plot_table <- clean_gendered_references %>% 
+  group_by(continent,publication_year,citing_field) %>% 
+  mutate(observed =n_works/sum(n_works)) %>% 
+  ungroup() %>% 
+  left_join(clean_gendered_references_weights, by =c("continent","publication_year","citing_field" )) %>% 
+  left_join(normalization, by =c("publication_year","cited_gender","citing_field")) %>% 
+  mutate(diff = observed - exp) %>% 
+  group_by(continent, publication_year,cited_gender) %>% 
+  summarise(avg_diff = weighted.mean(x=diff,w=w),
+            n = sum(n_works))
 
 
-full_table <- observed %>% 
-  left_join(weighted_expected_values, by = c("publication_year","continent","cited_gender")) %>% 
-  mutate(ratio = observed/exp,
-         diff = observed - exp)
-
-order <- full_table %>% 
-  group_by(continent) %>% summarise(n = sum(n_works)) %>% 
+order <- plot_table %>% 
+  group_by(continent) %>% summarise(n = sum(n)) %>% 
   arrange(-n) %>% pull(continent)
 
 
-full_table %>% 
+plot_table %>% 
   mutate(continent = factor(continent,levels = order)) %>% 
   mutate(gender_group = paste0("References to ",cited_gender )) %>% 
-  filter(n_works > 100) %>% 
+  filter(n > 100) %>% 
   filter(continent != "Central Asia") %>% 
-  ggplot(aes(x = publication_year, y = diff
-             ,size = n_works
+  ggplot(aes(x = publication_year, y = avg_diff
+             ,size = n
              ,color = gender_group, fill = gender_group
   ))+
   geom_point(alpha = .7)+
@@ -503,12 +500,17 @@ full_table %>%
   guides(fill = guide_legend(nrow = 2))+
   guides(color = guide_legend(nrow = 2))
 
-ggsave("results/obs_exp_references_homo_together_diff.png",bg="white",height = 8,width = 12)
+ggsave("results/obs_exp_references_homo_together_diff_correction.png",bg="white",height = 8,width = 12)
 
 ####supplementary - references######
 
 
-full_table %>% 
+clean_gendered_references %>% 
+  group_by(continent,publication_year,cited_gender) %>% 
+  summarise(n_works = sum(n_works)) %>% 
+  group_by(continent,publication_year) %>% 
+  mutate(observed =n_works/sum(n_works))  %>% 
+  filter(publication_year >=1991) %>% 
   mutate(continent = factor(continent,levels = order)) %>% 
   mutate(gender_group = paste0("References to ",cited_gender )) %>% 
   filter(n_works > 100) %>% 
